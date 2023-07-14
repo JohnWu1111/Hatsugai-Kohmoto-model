@@ -32,10 +32,10 @@ for n = 1:nU
         for j = 1:nk
             a = E_k(j);
             % spin number = 2
-            H2 = [2*a+U/4 b b 0;
+            H2 = [2*a+U/2 b b 0;
                 b -U/2 0 b;
                 b 0 -U/2 b;
-                0 b b -2*a+U/4];
+                0 b b -2*a+U/2];
             [V2,D2] = eig(H2);
             e2 = diag(D2);
             phi0_2(:,j) = V2(:,1);

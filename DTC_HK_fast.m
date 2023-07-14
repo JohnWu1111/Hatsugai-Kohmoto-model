@@ -10,15 +10,17 @@ L = 200;
 k = -1/2 + 2/L:2/L:1/2; % *pi
 % k = 2/L:2/L:1;
 U = 2;
-VV0 = 4;
-VV = 1;
+VV0 = 10;
+VV = 3;
+delta = 0.8;
 E_k = -2*cospi(k');
 nk = length(E_k);
 step = 1000;
 tol = 1e-5;
+omega = 1;
 
-dt = 1e-3;
-M = 1;
+dt = 1e-4;
+M = 100;
 T_max = 100;
 T = 0:M*dt:T_max;
 nt = length(T);
@@ -31,7 +33,7 @@ nt_real = round(T_max / dt) + 1;
 % 3D:(u'd+ud')/sqrt(2),ud,u'd'; 1D:(u'd-ud')/sqrt(2)
 
 phi0_2 = zeros(3,nk);
-phi0_2_4 = zeros(1,nk);
+% phi0_2_4 = zeros(1,nk);
 phi0_2(1,:) = 1/sqrt(2);
 phi0_2(2,:) = 1/sqrt(2);
 e2_4 = -U/2;
@@ -45,19 +47,14 @@ for i = 2:step
         a = 2*E_k(j);
         % spin number = 2
         H2 = [-U/2 b b;
-            b -a+U/2 0;
-            b 0 a+U/2];
+            b a+U/2 0;
+            b 0 -a+U/2];
         [V2,D2] = eig(H2);
         e2 = diag(D2);
-        if e2(1) < e2_4
-            phi0_2(:,j) = V2(:,1);
-            phi0_2_4(j) = 0;
-        else
-            phi0_2(:,j) = zeros(3,1);
-            phi0_2_4(j) = 1;
-        end
+        phi0_2(:,j) = V2(:,1);
+        % phi0_2_4(j) = 0;
     end
-    m0(i) = sqrt(2)*((phi0_2(2,:)+phi0_2(3,:))*(phi0_2(1,:)+phi0_2_4)')/L;
+    m0(i) = sqrt(2)*((phi0_2(2,:)+phi0_2(3,:))*phi0_2(1,:)')/L;
     if abs(m0(i) - m0(i-1)) < tol
         break;
     end
@@ -77,41 +74,22 @@ phi_23 = phi_2(3,:)';
 % phi_norm = zeros(nt,1);
 % phi_norm(1) = 2*sum(abs(phi_21).^2 + abs(phi_22).^2 + abs(phi_23).^2)/L;
 
+k_space_singlon = zeros(nt,nk);
+k_space_doublonk = zeros(nt,nk);
+k_space_doublonkp = zeros(nt,nk);
+k_space_singlon(1,:) = abs(phi_21.^2);
+k_space_doublonk(1,:) = abs(phi_22.^2);
+k_space_doublonkp(1,:) = abs(phi_23.^2);
+
 count = 2;
+t_it = 0;
 for i = 2:nt_real
-    d = -2*sqrt(2)*m_it*VV;
+    VV_it = VV + delta*cos(2*pi*omega*t_it);
+    t_it = t_it + dt;
+    d = -2*sqrt(2)*m_it*VV_it;
     % spin number = 2
+
     % solve the eigenvalue using pol3 root formula
-    [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt);
-
-    % k = pi/2 is a special point
-    phik_1 = phi_21(end);
-    phik_2 = phi_22(end);
-    phik_3 = phi_23(end);
-
-    [phik_1t,phik_2t,phik_3t] = time_evo_k(phik_1,phik_2,phik_3,U,sqrt(2)*d,dt);
-
-    phi_21 = phi_21t;
-    phi_22 = phi_22t;
-    phi_23 = phi_23t;
-    phi_21(end) = phik_1t;
-    phi_22(end) = phik_2t;
-    phi_23(end) = phik_3t;
-
-    m_it = sqrt(2)*real((phi_22+phi_23)'*(phi_21+phi0_2_4'))/L;
-    if mod(i-1,M) == 0
-        m(count) = m_it;
-%         phi_norm(count) = 2*sum(abs(phi_21).^2 + abs(phi_22).^2 + abs(phi_23).^2)/L;
-        count = count + 1;
-    end
-end
-
-figure;
-plot(T,m)
-
-toc;
-
-function [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt)
     a = -U/2;
     b = 2*E_k + U/2;
     c = -2*E_k + U/2;
@@ -122,18 +100,6 @@ function [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt)
     alpha = a+b+c;
     beta = ab+bc+ac-2*d^2;
     gamma = a*bc - bpc*d^2;
-
-    % method 1
-%     p = beta - alpha.^2/3;
-%     q = gamma - alpha.*beta/3 + 2*alpha.^2/27;
-%     u = 2*sqrt(-p/3);
-%     temp = (-p).^(-3/2);
-%     v = acos(-q/2.*temp)/3;
-%     angle = [0 2*pi/3 4*pi/3];
-%     root3 = u.*cos(v+angle);
-%     root3 = sort(root3,2,'descend');
-
-    % method 2
     AA = alpha.^2 - 3*beta;
     BB = alpha.*beta - 9*gamma;
     % CC = beta.^2 - 3*alpha.*gamma;
@@ -142,6 +108,7 @@ function [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt)
     theta = acos(TT)/3;
     angle = [0 2*pi/3 4*pi/3];
     root3 = (-alpha-2*temp.*cos(theta + angle))/3;
+    root3 = sort(root3,2,'descend');
 
     % constructing expH
     root32 = root3.^2;
@@ -160,30 +127,18 @@ function [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt)
     phi_22t = B.*phi_21 + A2.*phi_22 + D.*phi_23;
     phi_23t = C.*phi_21 + D.*phi_22 + A3.*phi_23;
 
-%     i = 1;
-%     H1 = [A1(i) B(i) C(i); B(i) A2(i) D(i); C(i) D(i) A3(i)];
-%     H2 = [a d d; d b(i) 0; d 0 c(i)];
-%     expH = expm(-1i*H2*dt);
-% %    expH - H1
-% % 
-%     phi_2 = [phi_21(i),phi_22(i),phi_23(i)]';
-%     [V2,D2] = eig(H2);
-%     e2 = diag(D2);
-% %     trans = V2'*phi_2;
-% %     phi_2it = V2*(exp(-1i*e2*dt).*trans);
-% %     phi_2it - conj([phi_21t(i),phi_22t(i),phi_23t(i)])'
-% %     exp(-1i*e2*dt) - exp(1i*dt*root3(i,:)')
-%     e2 + root3(i,:)'
-end
+    % k = pi/2 is a special point
+    phik_1 = phi_21(end);
+    phik_2 = phi_22(end);
+    phik_3 = phi_23(end);
 
-function [phik_1,phik_2,phik_3] = time_evo_k(phik_1,phik_2,phik_3,U,b,dt)
-    % 3D-basis can be reduced to 2+1D-basis
     % rotate basis
     phik_2n = (phik_2 + phik_3)/sqrt(2);
     phik_3 = (phik_2 - phik_3)/sqrt(2);
     phik_2 = phik_2n;
 
-    a = -U/2;
+    b = sqrt(2)*d;
+    % a = -U/2;
     % H = [a b;b -a];
     fact = sqrt(a^2+b^2);
     ft = fact*dt;
@@ -199,4 +154,60 @@ function [phik_1,phik_2,phik_3] = time_evo_k(phik_1,phik_2,phik_3,U,b,dt)
     phik_2n = (phik_2 + phik_3)/sqrt(2);
     phik_3 = (phik_2 - phik_3)/sqrt(2);
     phik_2 = phik_2n;
+
+    phi_21 = phi_21t;
+    phi_22 = phi_22t;
+    phi_23 = phi_23t;
+    phi_21(end) = phik_1;
+    phi_22(end) = phik_2;
+    phi_23(end) = phik_3;
+
+    m_it = sqrt(2)*real((phi_22+phi_23)'*phi_21)/L;
+    if mod(i-1,M) == 0
+        m(count) = m_it;
+        k_space_singlon(count,:) = abs(phi_21.^2);
+        k_space_doublonk(count,:) = abs(phi_22.^2);
+        k_space_doublonkp(count,:) = abs(phi_23.^2);
+%         phi_norm(count) = 2*sum(abs(phi_21).^2 + abs(phi_22).^2 + abs(phi_23).^2)/L;
+        count = count + 1;
+    end
 end
+
+cut = 800;
+phi_f = abs(fft(m(floor(nt/2)+1:end),(nt+1)/2));
+phi_f(1) = 0;
+phi_f_main = phi_f(1:cut);
+dw = 1/(T_max/2);
+w_max = 1/(M*dt);
+w = 0:dw:w_max;
+w_main = w(1:cut);
+[maxtab, ~]=peakdet(phi_f_main, max(phi_f_main)/3);
+if ~isempty(maxtab)
+    [~, peak] = max(maxtab(2));
+    peak_f = w(maxtab(peak,1));
+    peak_per = maxtab(peak,2)/sum(maxtab(2));
+else
+    peak_f = 0;
+    peak_per = 0;
+    warning('no peak in the inteval!')
+end
+
+k_space_all(1,:) = mean(k_space_singlon(floor(nt*0.9):end,:));
+k_space_all(2,:) = mean(k_space_doublonk(floor(nt*0.9):end,:));
+k_space_all(3,:) = mean(k_space_doublonkp(floor(nt*0.9):end,:));
+
+k_space0(1,:) = k_space_singlon(1,:);
+k_space0(2,:) = k_space_doublonk(1,:);
+k_space0(3,:) = k_space_doublonkp(1,:);
+
+
+filename = strcat('L = ',num2str(L), ', U = ', num2str(U), ', Vi = ', num2str(VV0), ', Vf = ', num2str(VV), ', delta = ', num2str(delta));
+figure('Name',filename);
+% plot(T(floor(nt*0.95):end),m(floor(nt*0.95):end))
+% plot(w_main,phi_f_main)
+% plot(T,m)
+% image(k,T,k_space_doublonkp,'CDataMapping','scaled')
+% imagesc(k,T,k_space_doublonkp)
+plot(k,k_space0)
+
+toc;

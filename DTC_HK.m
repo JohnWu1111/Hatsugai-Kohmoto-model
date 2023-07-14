@@ -9,16 +9,19 @@ L = 200;
 % k = -pi/2 + 2*pi/L:2*pi/L:pi/2;
 k = -1/2 + 2/L:2/L:1/2; % *pi
 % k = 2/L:2/L:1;
-U = 8;
-VV0 = 4;
-VV = 1;
+U = 0;
+VV0 = 10;
+VV = 3;
+delta = 0.8;
 E_k = -2*cospi(k');
 nk = length(E_k);
-step = 100;
+step = 1000;
+tol = 1e-5;
+omega = 1;
 
 dt = 1e-3;
 M = 1;
-T_max = 100;
+T_max = 10;
 T = 0:M*dt:T_max;
 nt = length(T);
 nt_real = round(T_max / dt) + 1;
@@ -57,18 +60,24 @@ for i = 2:step
         end
     end
     m0(i) = sqrt(2)*((phi0_2(2,:)+phi0_2(3,:))*(phi0_2(1,:)+phi0_2_4)')/L;
+    if abs(m0(i) - m0(i-1)) < tol
+        break;
+    end
 end
 
 %% quench time evolution
 
 phi_2 = phi0_2;
 m = zeros(nt,1);
-m(1) = m0(end);
+m(1) = m0(i);
 m_it = m(1);
 
 count = 2;
+t_it = 0;
 for i = 2:nt_real
-    b = -2*sqrt(2)*m_it*VV;
+    VV_it = VV + delta*cos(2*pi*omega*t_it);
+    t_it = t_it + dt;
+    b = -2*sqrt(2)*m_it*VV_it;
     for j = 1:nk
         a = 2*E_k(j);
         % spin number = 2
@@ -82,7 +91,7 @@ for i = 2:nt_real
     end
     m_it = sqrt(2)*real((phi_2(2,:)+phi_2(3,:))*(phi_2(1,:)+phi0_2_4)')/L;
     if mod(i-1,M) == 0
-        m(count) = real(m_it);
+        m(count) = m_it;
         count = count + 1;
     end
 end
