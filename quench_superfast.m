@@ -5,13 +5,14 @@ tic;
 
 %% parameter
 
-L = 200;
+L = 500;
 % k = -pi/2 + 2*pi/L:2*pi/L:pi/2;
 k = -1/2 + 2/L:2/L:1/2; % *pi
 % k = 2/L:2/L:1;
-U = 2;
-VV0 = 4;
-VV = 1;
+U0 = 1;
+U = 100;
+VV0 = 10;
+VV = 10;
 E_k = -2*cospi(k');
 nk = length(E_k);
 step = 1000;
@@ -34,7 +35,7 @@ phi0_2 = zeros(3,nk);
 phi0_2_4 = zeros(1,nk);
 phi0_2(1,:) = 1/sqrt(2);
 phi0_2(2,:) = 1/sqrt(2);
-e2_4 = -U/2;
+e2_4 = -U0/2;
 
 m0 = zeros(step,1);
 m0(1) = sqrt(2)*((phi0_2(2,:)+phi0_2(3,:))*phi0_2(1,:)')/L;
@@ -44,12 +45,12 @@ for i = 2:step
     for j = 1:nk
         a = 2*E_k(j);
         % spin number = 2
-        H2 = [-U/2 b b;
-            b -a+U/2 0;
-            b 0 a+U/2];
+        H2 = [-U0/2 b b;
+            b a+U0/2 0;
+            b 0 -a+U0/2];
         [V2,D2] = eig(H2);
         e2 = diag(D2);
-        if e2(1) < e2_4
+        if e2(1) <= e2_4
             phi0_2(:,j) = V2(:,1);
             phi0_2_4(j) = 0;
         else
@@ -74,8 +75,22 @@ phi_21 = phi_2(1,:)';
 phi_22 = phi_2(2,:)';
 phi_23 = phi_2(3,:)';
 
+k_space_singlon = zeros(nt,nk);
+k_space_doublonk = zeros(nt,nk);
+k_space_doublonkp = zeros(nt,nk);
+k_space_singlon(1,:) = abs(phi_21.^2);
+k_space_doublonk(1,:) = abs(phi_22.^2);
+k_space_doublonkp(1,:) = abs(phi_23.^2);
+
 % phi_norm = zeros(nt,1);
 % phi_norm(1) = 2*sum(abs(phi_21).^2 + abs(phi_22).^2 + abs(phi_23).^2)/L;
+
+% figure;
+% hold on
+% p1 = plot(k,k_space_singlon(1,:));
+% p2 = plot(k,k_space_doublonk(1,:));
+% p3 = plot(k,k_space_doublonkp(1,:));
+% legend('singlon','doublon_k','doublon_k''')
 
 count = 2;
 for i = 2:nt_real
@@ -101,12 +116,30 @@ for i = 2:nt_real
     m_it = sqrt(2)*real((phi_22+phi_23)'*(phi_21+phi0_2_4'))/L;
     if mod(i-1,M) == 0
         m(count) = m_it;
+        k_space_singlon(count,:) = abs(phi_21.^2);
+        k_space_doublonk(count,:) = abs(phi_22.^2);
+        k_space_doublonkp(count,:) = abs(phi_23.^2);
+%         set(p1,'Ydata',k_space_singlon(count,:));
+%         set(p2,'Ydata',k_space_doublonk(count,:));
+%         set(p3,'Ydata',k_space_doublonkp(count,:));
+%         drawnow
 %         phi_norm(count) = 2*sum(abs(phi_21).^2 + abs(phi_22).^2 + abs(phi_23).^2)/L;
         count = count + 1;
     end
 end
 
-figure;
+
+k_space0(1,:) = k_space_singlon(1,:);
+k_space0(2,:) = k_space_doublonk(1,:);
+k_space0(3,:) = k_space_doublonkp(1,:);
+
+filename = strcat('L = ',num2str(L), ', U = ', num2str(U), ', Vi = ', num2str(VV0), ', Vf = ', num2str(VV));
+figure('Name',filename);
+% figure;
+% plot(k,k_space_all)
+% plot(k,k_space0)
+% legend('singlon','doublon_k','doublon_k''')
+% figure
 plot(T,m)
 
 toc;
@@ -140,7 +173,8 @@ function [phi_21t,phi_22t,phi_23t] = time_evo(phi_21,phi_22,phi_23,E_k,U,d,dt)
     temp = sqrt(AA);
     TT = (AA.*alpha - 3*BB/2)./temp.^3;
     theta = acos(TT)/3;
-    angle = [0 2*pi/3 4*pi/3];
+%     angle = [0 2*pi/3 4*pi/3];
+    angle = [2*pi/3 4*pi/3 0];
     root3 = (-alpha-2*temp.*cos(theta + angle))/3;
 
     % constructing expH
@@ -192,8 +226,8 @@ function [phik_1,phik_2,phik_3] = time_evo_k(phik_1,phik_2,phik_3,U,b,dt)
     cc = cos(ft);
     Es = a*ss;
     bs = b*ss;
-    phik_1n = (cc-1i*Es)*phik_1 +1i*bs*phik_2;
-    phik_2 = (cc+1i*Es)*phik_2 +1i*bs*phik_1;
+    phik_1n = (cc-1i*Es)*phik_1 -1i*bs*phik_2;
+    phik_2 = (cc+1i*Es)*phik_2 -1i*bs*phik_1;
     phik_1 = phik_1n;
     
     phik_2n = (phik_2 + phik_3)/sqrt(2);

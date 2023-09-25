@@ -147,8 +147,8 @@ for i = 2:nt_real
     cc = cos(ft);
     Es = a*ss;
     bs = b*ss;
-    phik_1n = (cc-1i*Es)*phik_1 +1i*bs*phik_2;
-    phik_2 = (cc+1i*Es)*phik_2 +1i*bs*phik_1;
+    phik_1n = (cc-1i*Es)*phik_1 -1i*bs*phik_2;
+    phik_2 = (cc+1i*Es)*phik_2 -1i*bs*phik_1;
     phik_1 = phik_1n;
     
     phik_2n = (phik_2 + phik_3)/sqrt(2);

@@ -7,8 +7,8 @@ L = 120;
 % k = -pi/2 + 2*pi/L:2*pi/L:pi/2;
 k = -1/2 + 2/L:2/L:1/2; % *pi
 % k = 2/L:2/L:1;
-U = 8;
-VV = 1;
+U = 2;
+VV = 0;
 E_k = -2*cospi(k');
 nk = length(E_k);
 
